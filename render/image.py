@@ -3,21 +3,36 @@ from typing import *
 from PIL import Image as PILImage
 from render.color import Color
 
+KeyType = Union[
+    Tuple[int, int],
+    Tuple[int, slice],
+    Tuple[slice, int],
+    Tuple[slice, slice]
+]
+
 
 class Image:
 
     def __init__(self, width, height, fill_color: Color = Color(0, 0, 0, 255)):
+        self._width = width
+        self._height = height
         self._matrix = np.empty((height, width, 4)).astype(np.uint8)
         self._matrix[:, :] = fill_color.as_list()
 
     def save_image(self, path: str = "image.png"):
-        PILImage.fromarray(self._matrix).save(path)
+        PILImage.fromarray(self._matrix[::-1]).save(path)
 
-    def __getitem__(self, key: Union[Tuple[Union[int, slice]], Union[int, slice]]):
-        return self._matrix[key]
+    def width(self):
+        return self._width
 
-    def __setitem__(self, key: Union[Tuple[Union[int, slice]], Union[int, slice]], color: Color):
+    def height(self):
+        return self._height
+
+    def __getitem__(self, key: KeyType):
+        return self._matrix[key[::-1]]
+
+    def __setitem__(self, key: KeyType, color: Color):
         if isinstance(color, Color):
-            self._matrix[key] = color.as_list()
+            self._matrix[key[::-1]] = color.as_list()
         else:
             raise ValueError("Assignable value must be a Color instance")

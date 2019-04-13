@@ -1,9 +1,10 @@
 from render.image import Image
-from render.color import Color
+from render.render import render_model
+from model.model import Model
+
 
 if __name__ == '__main__':
-    img = Image(1920, 1080)
-    img[:, :] = Color(255, 255, 0, 255)
-    img.save_image()
-
-
+    model = Model("./obj/african_head.obj")
+    image = Image(600, 600)
+    render_model(model, image)
+    image.save_image()
