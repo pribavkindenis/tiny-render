@@ -1,18 +1,15 @@
-# Heat exchange process
-A simple Python application that performs a heat exchange process.
-
-![OOPS](./screenshots/process.png)
-![OOPS](./screenshots/experiment.png)
+# Tiny render
+A simple python application rendering 3D model.
 
 # Requirements
-* python3.6
+* python3
 * virtualenv
 * tkinter
 
 # Launch
 ```bash
-git clone https://github.com/pribavkindenis/heat-exchange-process.git
-cd ./heat-exchange-process/
+git clone https://github.com/pribavkindenis/tiny-render.git
+cd ./tiny-render/
 ./install.sh
 ./run.sh
 ```
