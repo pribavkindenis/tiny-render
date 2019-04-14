@@ -4,7 +4,7 @@ A simple python application rendering 3D model.
 # Requirements
 * python3
 * virtualenv
-* tkinter
+* pillow
 
 # Launch
 ```bash
