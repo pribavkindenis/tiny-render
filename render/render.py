@@ -2,6 +2,7 @@ from render.color import Color
 from render.image import Image
 from model.model import Model
 import numpy as np
+import sys
 from typing import *
 
 
@@ -9,6 +10,10 @@ def render_model(model: Model,
                  image: Image,
                  light_direction: np.ndarray,
                  color: Color = Color(255, 255, 255)):
+    light_direction = light_direction / np.linalg.norm(light_direction)
+
+    z_buffer = np.full((image.width(), image.height()), -sys.maxsize-1)
+
     for i in range(len(model.polygons())):
         polygon = model.polygon(i)
         screen_coordinates = []
@@ -17,16 +22,15 @@ def render_model(model: Model,
             world_coordinates.append(model.vertex(polygon[j][0]))
             screen_coordinates.append([
                 int((world_coordinates[j][0] + 1) * (image.width() / 2 - 2)),
-                int((world_coordinates[j][1] + 1) * (image.height() / 2 - 2))
+                int((world_coordinates[j][1] + 1) * (image.height() / 2 - 2)),
+                int((world_coordinates[j][2] + 1) * (image.depth() / 2 - 2))
             ])
         vector_prod = np.cross(
-            world_coordinates[1] - world_coordinates[0],
-            world_coordinates[2] - world_coordinates[1]
+            world_coordinates[2] - world_coordinates[0],
+            world_coordinates[1] - world_coordinates[0]
         )
 
         normal = vector_prod / np.linalg.norm(vector_prod)
-        light_direction = light_direction / np.linalg.norm(light_direction)
-
         intensity = normal.dot(light_direction)
 
         if intensity > 0:
@@ -35,6 +39,7 @@ def render_model(model: Model,
                 screen_coordinates[0],
                 screen_coordinates[1],
                 screen_coordinates[2],
+                z_buffer,
                 image,
                 color
             )
@@ -43,6 +48,7 @@ def render_model(model: Model,
 def draw_triangle(p1: List[int],
                   p2: List[int],
                   p3: List[int],
+                  z_buffer: np.ndarray,
                   image: Image,
                   color: Color,
                   draw_borders: bool = False):
@@ -73,7 +79,12 @@ def draw_triangle(p1: List[int],
         a = a.round().astype(int)
         b = b.round().astype(int)
         for j in range(a[0], b[0] + 1):
-            image[j, p1[1]+i] = color
+            phi = 1.0 if b[0] == a[0] else (j - a[0]) / (b[0] - a[0])
+            p = a + (b - a) * phi
+            p = p.round().astype(int)
+            if z_buffer[p[0], p[1]] < p[2]:
+                z_buffer[p[0], p[1]] = p[2]
+                image[p[0], p[1]] = color
 
     if draw_borders:
         draw_line(p1[0], p1[1], p2[0], p2[1], image, Color(255, 255, 255))
