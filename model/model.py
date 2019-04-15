@@ -1,45 +1,31 @@
 from typing import *
+from PIL import Image as PILImage
 import numpy as np
+import re
 
 
 class Model:
 
-    def __init__(self, path: str = "./obj/african_head.obj"):
-        v, f = self.parse_obj(path)
-        self._v = np.array(v)
-        self._f = np.array(f)
-
-    def vertexes(self):
-        return self._v
-
-    def polygons(self):
-        return self._f
-
-    def vertex(self, i):
-        return self._v[i]
-
-    def polygon(self, i):
-        return self._f[i]
-
     @staticmethod
-    def parse_obj(path) -> Tuple[List, List]:
+    def parse_obj(path) -> Tuple[List, List, List]:
+        vt = []
         v = []
         f = []
         with open(path, "r") as file:
             for line in file:
                 if line.startswith("vt"):
-                    pass
+                    Model.parse_line(line, vt)
                 elif line.startswith("vn"):
                     pass
                 elif line.startswith("v"):
-                    Model.parse_vertex(line, v)
+                    Model.parse_line(line, v)
                 elif line.startswith("f"):
                     Model.parse_polygon(line, f)
-        return v, f
+        return vt, v, f
 
     @staticmethod
-    def parse_vertex(line: str, array: list):
-        data = line.strip().split(" ")
+    def parse_line(line: str, array: list):
+        data = re.split("\\s+", line.strip())
         result = []
         for i in range(1, len(data)):
             try:
@@ -50,9 +36,9 @@ class Model:
 
     @staticmethod
     def parse_polygon(line: str, array: list):
-        data = line.strip().split(" ")
+        data = re.split("\\s+", line.strip())
         result = []
-        for i in range(1, 4):
+        for i in range(1, len(data)):
             sub_data = data[i].split("/")
             try:
                 result.append([
@@ -63,3 +49,33 @@ class Model:
             except ValueError:
                 raise IOError("Object file is invalid")
         array.append(result)
+
+    @staticmethod
+    def load_diffuse_texture(diffuse_texture_path: str) -> np.ndarray:
+        return np.array(PILImage.open(diffuse_texture_path).convert("RGBA"))[::-1]
+
+    def __init__(self,
+                 model_path: str = "./obj/african_head.obj",
+                 diffuse_texture_path: str = "./obj/african_head_diffuse.tga"):
+        vt, v, f = self.parse_obj(model_path)
+        self._vt = np.array(vt)
+        self._v = np.array(v)
+        self._f = np.array(f)
+        self._diffuse_map = self.load_diffuse_texture(diffuse_texture_path)
+        self._diffuse_width = len(self._diffuse_map[0])
+        self._diffuse_height = len(self._diffuse_map)
+
+    def polygons(self):
+        return self._f
+
+    def diffuse(self, x, y):
+        return self._diffuse_map[y, x]
+
+    def vertex(self, i):
+        return self._v[i]
+
+    def polygon(self, i):
+        return self._f[i]
+
+    def texture_coordinates(self, i, j) -> np.ndarray:
+        return self._vt[self._f[i, j, 1]] * [self._diffuse_width, self._diffuse_height, 1]

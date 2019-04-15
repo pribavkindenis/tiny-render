@@ -8,8 +8,7 @@ from typing import *
 
 def render_model(model: Model,
                  image: Image,
-                 light_direction: np.ndarray,
-                 color: Color = Color(255, 255, 255)):
+                 light_direction: np.ndarray):
     light_direction = light_direction / np.linalg.norm(light_direction)
 
     z_buffer = np.full((image.width(), image.height()), -sys.maxsize-1)
@@ -34,24 +33,30 @@ def render_model(model: Model,
         intensity = normal.dot(light_direction)
 
         if intensity > 0:
-            color.set_intensity(intensity)
             draw_triangle(
                 screen_coordinates[0],
                 screen_coordinates[1],
                 screen_coordinates[2],
+                model.texture_coordinates(i, 0),
+                model.texture_coordinates(i, 1),
+                model.texture_coordinates(i, 2),
                 z_buffer,
                 image,
-                color
+                model,
+                intensity
             )
 
 
 def draw_triangle(p1: List[int],
                   p2: List[int],
                   p3: List[int],
+                  t1: np.ndarray,
+                  t2: np.ndarray,
+                  t3: np.ndarray,
                   z_buffer: np.ndarray,
                   image: Image,
-                  color: Color,
-                  draw_borders: bool = False):
+                  model: Model,
+                  intensity: float):
     if p1[1] == p2[1] and p1[1] == p3[1]:
         return
 
@@ -61,10 +66,13 @@ def draw_triangle(p1: List[int],
 
     if p1[1] > p2[1]:
         p1, p2 = p2, p1
+        t1, t2 = t2, t1
     if p1[1] > p3[1]:
         p1, p3 = p3, p1
+        t1, t3 = t3, t1
     if p2[1] > p3[1]:
         p2, p3 = p3, p2
+        t2, t3 = t3, t2
 
     total_height = p3[1] - p1[1]
     for i in range(total_height):
@@ -74,22 +82,25 @@ def draw_triangle(p1: List[int],
         beta = (i - (p2[1] - p1[1] if second_half else 0)) / segment_height
         a = p1 + (p3 - p1) * alpha
         b = p2 + (p3 - p2) * beta if second_half else p1 + (p2 - p1) * beta
+        t_a = t1 + (t3 - t1) * alpha
+        t_b = t2 + (t3 - t2) * beta if second_half else t1 + (t2 - t1) * beta
         if a[0] > b[0]:
             a, b = b, a
+            t_a, t_b = t_b, t_a
         a = a.round().astype(int)
         b = b.round().astype(int)
+        t_a = t_a.round().astype(int)
+        t_b = t_b.round().astype(int)
         for j in range(a[0], b[0] + 1):
             phi = 1.0 if b[0] == a[0] else (j - a[0]) / (b[0] - a[0])
             p = a + (b - a) * phi
             p = p.round().astype(int)
+            t_p = t_a + (t_b - t_a) * phi
+            t_p = t_p.round().astype(int)
             if z_buffer[p[0], p[1]] < p[2]:
                 z_buffer[p[0], p[1]] = p[2]
+                color = Color(*model.diffuse(t_p[0], t_p[1]), intensity=intensity)
                 image[p[0], p[1]] = color
-
-    if draw_borders:
-        draw_line(p1[0], p1[1], p2[0], p2[1], image, Color(255, 255, 255))
-        draw_line(p2[0], p2[1], p3[0], p3[1], image, Color(255, 255, 255))
-        draw_line(p3[0], p3[1], p1[0], p1[1], image, Color(255, 255, 255))
 
 
 def draw_line(x0: int,
