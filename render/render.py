@@ -3,7 +3,6 @@ from render.image import Image
 from model.model import Model
 import numpy as np
 import sys
-from typing import *
 
 
 def render_model(model: Model,
@@ -11,19 +10,17 @@ def render_model(model: Model,
                  light_direction: np.ndarray):
     light_direction = light_direction / np.linalg.norm(light_direction)
 
-    z_buffer = np.full((image.width(), image.height()), -sys.maxsize-1)
-
+    z_buffer = np.full((image.width(), image.height()), -sys.maxsize - 1)
+    scales = [
+        image.width() / 2 - 2,
+        image.height() / 2 - 2,
+        image.depth() / 2 - 2
+    ]
     for i in range(len(model.polygons())):
         polygon = model.polygon(i)
-        screen_coordinates = []
-        world_coordinates = []
-        for j in range(3):
-            world_coordinates.append(model.vertex(polygon[j][0]))
-            screen_coordinates.append([
-                int((world_coordinates[j][0] + 1) * (image.width() / 2 - 2)),
-                int((world_coordinates[j][1] + 1) * (image.height() / 2 - 2)),
-                int((world_coordinates[j][2] + 1) * (image.depth() / 2 - 2))
-            ])
+        world_coordinates = model.vertex(polygon[:, 0])
+        screen_coordinates = (world_coordinates + 1) * scales
+        screen_coordinates = screen_coordinates.round().astype(int)
         vector_prod = np.cross(
             world_coordinates[2] - world_coordinates[0],
             world_coordinates[1] - world_coordinates[0]
@@ -47,9 +44,9 @@ def render_model(model: Model,
             )
 
 
-def draw_triangle(p1: List[int],
-                  p2: List[int],
-                  p3: List[int],
+def draw_triangle(p1: np.ndarray,
+                  p2: np.ndarray,
+                  p3: np.ndarray,
                   t1: np.ndarray,
                   t2: np.ndarray,
                   t3: np.ndarray,
@@ -59,10 +56,6 @@ def draw_triangle(p1: List[int],
                   intensity: float):
     if p1[1] == p2[1] and p1[1] == p3[1]:
         return
-
-    p1 = np.array(p1)
-    p2 = np.array(p2)
-    p3 = np.array(p3)
 
     if p1[1] > p2[1]:
         p1, p2 = p2, p1
@@ -99,8 +92,7 @@ def draw_triangle(p1: List[int],
             t_p = t_p.round().astype(int)
             if z_buffer[p[0], p[1]] < p[2]:
                 z_buffer[p[0], p[1]] = p[2]
-                color = Color(*model.diffuse(t_p[0], t_p[1]), intensity=intensity)
-                image[p[0], p[1]] = color
+                image[p[0], p[1]] = Color(*model.diffuse(t_p[0], t_p[1]), intensity=intensity)
 
 
 def draw_line(x0: int,
@@ -135,4 +127,4 @@ def draw_line(x0: int,
         error += d_error
         if error > dx:
             y += 1 if y1 > y0 else -1
-            error -= 2*dx
+            error -= 2 * dx
