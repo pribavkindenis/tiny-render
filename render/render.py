@@ -1,26 +1,77 @@
 from render.color import Color
 from render.image import Image
 from model.model import Model
+from typing import *
 import numpy as np
 import sys
 
 
+def get_view_port(x, y, width, height, depth):
+    result = np.identity(4)
+
+    result[0, 3] = x + width / 2
+    result[1, 3] = y + height / 2
+    result[2, 3] = depth / 2
+
+    result[0, 0] = width / 2
+    result[1, 1] = height / 2
+    result[2, 2] = depth / 2
+
+    return result
+
+
+def to_matrix(vector: np.ndarray):
+    return np.append(vector, 1)
+
+
+def to_vector(matrix: np.ndarray):
+    return np.delete(matrix / matrix[3], 3)
+
+
+def look_at(eye: np.ndarray,
+            center: np.ndarray,
+            up: np.ndarray) -> np.ndarray:
+    z = (eye - center)
+    z = z / np.linalg.norm(z)
+    x = np.cross(up, z)
+    x = x / np.linalg.norm(x)
+    y = np.cross(z, x)
+    y = y / np.linalg.norm(y)
+    minv = np.identity(4)
+    tr = np.identity(4)
+    for i in range(3):
+        minv[0, i] = x[i]
+        minv[1, i] = y[i]
+        minv[2, i] = z[i]
+        tr[i, 3] = -center[i]
+    return minv.dot(tr)
+
+
 def render_model(model: Model,
                  image: Image,
-                 light_direction: np.ndarray):
+                 light_direction: np.ndarray,
+                 eye: np.ndarray,
+                 center: np.ndarray):
     light_direction = light_direction / np.linalg.norm(light_direction)
-
     z_buffer = np.full((image.width(), image.height()), -sys.maxsize - 1)
-    scales = [
-        image.width() / 2 - 2,
-        image.height() / 2 - 2,
-        image.depth() / 2 - 2
-    ]
+    projection = np.identity(4)
+    projection[3, 2] = - 1 / np.linalg.norm(eye - center)
+    model_view = look_at(eye, center, np.array([0, 1, 0]))
+    view_port = get_view_port(
+        image.width() / 8,
+        image.width() / 8,
+        image.width() * 3 / 4,
+        image.height() * 3 / 4,
+        image.depth())
+
     for i in range(len(model.polygons())):
         polygon = model.polygon(i)
         world_coordinates = model.vertex(polygon[:, 0])
-        screen_coordinates = (world_coordinates + 1) * scales
-        screen_coordinates = screen_coordinates.round().astype(int)
+        screen_coordinates: List[np.ndarray] = [np.empty(0)] * 3
+        screen_coordinates[0] = to_vector(view_port.dot(projection.dot(model_view.dot(to_matrix(world_coordinates[0]))))).round().astype(int)
+        screen_coordinates[1] = to_vector(view_port.dot(projection.dot(model_view.dot(to_matrix(world_coordinates[1]))))).round().astype(int)
+        screen_coordinates[2] = to_vector(view_port.dot(projection.dot(model_view.dot(to_matrix(world_coordinates[2]))))).round().astype(int)
+
         vector_prod = np.cross(
             world_coordinates[2] - world_coordinates[0],
             world_coordinates[1] - world_coordinates[0]
