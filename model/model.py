@@ -7,7 +7,8 @@ import re
 class Model:
 
     @staticmethod
-    def parse_obj(path) -> Tuple[List, List, List]:
+    def parse_obj(path) -> Tuple[List, List, List, List]:
+        vn = []
         vt = []
         v = []
         f = []
@@ -16,12 +17,12 @@ class Model:
                 if line.startswith("vt"):
                     Model.parse_line(line, vt)
                 elif line.startswith("vn"):
-                    pass
+                    Model.parse_line(line, vn)
                 elif line.startswith("v"):
                     Model.parse_line(line, v)
                 elif line.startswith("f"):
                     Model.parse_polygon(line, f)
-        return vt, v, f
+        return vn, vt, v, f
 
     @staticmethod
     def parse_line(line: str, array: list):
@@ -55,9 +56,10 @@ class Model:
         return np.array(PILImage.open(diffuse_texture_path).convert("RGBA"))[::-1]
 
     def __init__(self,
-                 model_path: str = "./obj/african_head.obj",
-                 diffuse_texture_path: str = "./obj/african_head_diffuse.tga"):
-        vt, v, f = self.parse_obj(model_path)
+                 model_path: str = "./obj/african_head/african_head.obj",
+                 diffuse_texture_path: str = "./obj/african_head/african_head_diffuse.tga"):
+        vn, vt, v, f = self.parse_obj(model_path)
+        self._vn = np.array(vn)
         self._vt = np.array(vt)
         self._v = np.array(v)
         self._f = np.array(f)
@@ -73,6 +75,9 @@ class Model:
 
     def vertex(self, i):
         return self._v[i]
+
+    def intensity(self, i):
+        return self._vn[i]
 
     def polygon(self, i):
         return self._f[i]

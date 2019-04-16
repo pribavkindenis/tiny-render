@@ -1,6 +1,8 @@
 # Tiny render
 A simple python application rendering 3D model.
 
+![Oops](./screenshots/african_head.png)
+
 # Requirements
 * python3
 * virtualenv
