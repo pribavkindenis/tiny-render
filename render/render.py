@@ -67,32 +67,26 @@ def render_model(model: Model,
     for i in range(len(model.polygons())):
         polygon = model.polygon(i)
         world_coordinates = model.vertex(polygon[:, 0])
+        intensities = model.intensity(polygon[:, 2])
         screen_coordinates: List[np.ndarray] = [np.empty(0)] * 3
         screen_coordinates[0] = to_vector(view_port.dot(projection.dot(model_view.dot(to_matrix(world_coordinates[0]))))).round().astype(int)
         screen_coordinates[1] = to_vector(view_port.dot(projection.dot(model_view.dot(to_matrix(world_coordinates[1]))))).round().astype(int)
         screen_coordinates[2] = to_vector(view_port.dot(projection.dot(model_view.dot(to_matrix(world_coordinates[2]))))).round().astype(int)
 
-        vector_prod = np.cross(
-            world_coordinates[2] - world_coordinates[0],
-            world_coordinates[1] - world_coordinates[0]
-        )
-
-        normal = vector_prod / np.linalg.norm(vector_prod)
-        intensity = normal.dot(light_direction)
-
-        if intensity > 0:
-            draw_triangle(
-                screen_coordinates[0],
-                screen_coordinates[1],
-                screen_coordinates[2],
-                model.texture_coordinates(i, 0),
-                model.texture_coordinates(i, 1),
-                model.texture_coordinates(i, 2),
-                z_buffer,
-                image,
-                model,
-                intensity
-            )
+        draw_triangle(
+            screen_coordinates[0],
+            screen_coordinates[1],
+            screen_coordinates[2],
+            model.texture_coordinates(i, 0),
+            model.texture_coordinates(i, 1),
+            model.texture_coordinates(i, 2),
+            intensities[0],
+            intensities[1],
+            intensities[2],
+            z_buffer,
+            image,
+            model,
+            light_direction)
 
 
 def draw_triangle(p1: np.ndarray,
@@ -101,22 +95,28 @@ def draw_triangle(p1: np.ndarray,
                   t1: np.ndarray,
                   t2: np.ndarray,
                   t3: np.ndarray,
+                  i1: np.ndarray,
+                  i2: np.ndarray,
+                  i3: np.ndarray,
                   z_buffer: np.ndarray,
                   image: Image,
                   model: Model,
-                  intensity: float):
+                  light_direction: np.ndarray):
     if p1[1] == p2[1] and p1[1] == p3[1]:
         return
 
     if p1[1] > p2[1]:
         p1, p2 = p2, p1
         t1, t2 = t2, t1
+        i1, i2 = i2, i1
     if p1[1] > p3[1]:
         p1, p3 = p3, p1
         t1, t3 = t3, t1
+        i1, i3 = i3, i1
     if p2[1] > p3[1]:
         p2, p3 = p3, p2
         t2, t3 = t3, t2
+        i2, i3 = i3, i2
 
     total_height = p3[1] - p1[1]
     for i in range(total_height):
@@ -128,9 +128,12 @@ def draw_triangle(p1: np.ndarray,
         b = p2 + (p3 - p2) * beta if second_half else p1 + (p2 - p1) * beta
         t_a = t1 + (t3 - t1) * alpha
         t_b = t2 + (t3 - t2) * beta if second_half else t1 + (t2 - t1) * beta
+        i_a = i1 + (i3 - i1) * alpha
+        i_b = i2 + (i3 - i2) * beta if second_half else i1 + (i2 - i1) * beta
         if a[0] > b[0]:
             a, b = b, a
             t_a, t_b = t_b, t_a
+            i_a, i_b = i_b, i_a
         a = a.round().astype(int)
         b = b.round().astype(int)
         t_a = t_a.round().astype(int)
@@ -141,9 +144,12 @@ def draw_triangle(p1: np.ndarray,
             p = p.round().astype(int)
             t_p = t_a + (t_b - t_a) * phi
             t_p = t_p.round().astype(int)
+            i_p = i_a + (i_b - i_a) * phi
+            r = np.dot(i_p, light_direction)
+            r = r if r >= 0 else 0
             if z_buffer[p[0], p[1]] < p[2]:
                 z_buffer[p[0], p[1]] = p[2]
-                image[p[0], p[1]] = Color(*model.diffuse(t_p[0], t_p[1]), intensity=intensity)
+                image[p[0], p[1]] = Color(*model.diffuse(t_p[0], t_p[1]), intensity=r)
 
 
 def draw_line(x0: int,
